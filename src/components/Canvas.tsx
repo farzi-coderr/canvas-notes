@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 
 export function Canvas() {
   const canvasRef = useRef<HTMLDivElement>(null);
-  const { notes, isLoaded, createNote, updateNote, deleteNote, bringToFront } = useNotes();
+  const { notes, isLoaded, error, createNote, updateNote, deleteNote, bringToFront } = useNotes();
   const {
     canvasState,
     isPanning,
@@ -35,7 +35,7 @@ export function Canvas() {
   }, [notes, searchQuery]);
 
   // Handle double-click to create note
-  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+  const handleDoubleClick = useCallback(async (e: React.MouseEvent) => {
     if (e.target !== canvasRef.current?.children[0]) return;
     
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -45,15 +45,15 @@ export function Canvas() {
     const x = (e.clientX - rect.left - canvasState.offsetX) / canvasState.scale;
     const y = (e.clientY - rect.top - canvasState.offsetY) / canvasState.scale;
     
-    const newNote = createNote(x - 120, y - 90); // Center the note at click position
+    const newNote = await createNote(x - 120, y - 90); // Center the note at click position
     setSelectedNote(newNote);
   }, [canvasState, createNote]);
 
-  const handleCreateNote = useCallback((color: NoteColor = 'yellow') => {
+  const handleCreateNote = useCallback(async (color: NoteColor = 'yellow') => {
     // Create note in center of visible area
     const x = (window.innerWidth / 2 - canvasState.offsetX) / canvasState.scale - 120;
     const y = (window.innerHeight / 2 - canvasState.offsetY) / canvasState.scale - 90;
-    const newNote = createNote(x, y, color);
+    const newNote = await createNote(x, y, color);
     setSelectedNote(newNote);
   }, [canvasState, createNote]);
 
@@ -98,6 +98,21 @@ export function Canvas() {
     return (
       <div className="flex items-center justify-center h-screen bg-canvas-bg">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-canvas-bg">
+        <div className="text-center p-8 bg-card rounded-xl shadow-soft max-w-md">
+          <div className="text-4xl mb-4">⚠️</div>
+          <h2 className="text-lg font-semibold text-foreground mb-2">Backend Not Connected</h2>
+          <p className="text-muted-foreground text-sm">{error}</p>
+          <code className="block mt-4 p-3 bg-muted rounded-lg text-xs text-left">
+            python main.py
+          </code>
+        </div>
       </div>
     );
   }
