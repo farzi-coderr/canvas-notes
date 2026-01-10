@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Note, NoteColor } from '@/types/note';
+import { useAuth } from '@/contexts/AuthContext';
 
 const API_URL = 'http://localhost:8000/api';
 
@@ -9,13 +10,37 @@ export function useNotes() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { token } = useAuth();
+
+  // Get auth headers
+  const getAuthHeaders = useCallback(() => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+  }, [token]);
 
   // Fetch notes from backend
   useEffect(() => {
     const fetchNotes = async () => {
+      if (!token) {
+        setIsLoaded(true);
+        return;
+      }
+
       try {
-        const response = await fetch(`${API_URL}/notes`);
-        if (!response.ok) throw new Error('Failed to fetch notes');
+        const response = await fetch(`${API_URL}/notes`, {
+          headers: getAuthHeaders(),
+        });
+        if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error('Session expired. Please log in again.');
+          }
+          throw new Error('Failed to fetch notes');
+        }
         const data = await response.json();
         // Map snake_case from backend to camelCase
         const mappedNotes: Note[] = data.map((note: any) => ({
@@ -34,14 +59,14 @@ export function useNotes() {
         setError(null);
       } catch (err) {
         console.error('Error fetching notes:', err);
-        setError('Could not connect to backend. Make sure your Python server is running on localhost:8000');
+        setError(err instanceof Error ? err.message : 'Could not connect to backend. Make sure your Python server is running on localhost:8000');
       } finally {
         setIsLoaded(true);
       }
     };
 
     fetchNotes();
-  }, []);
+  }, [token, getAuthHeaders]);
 
   const createNote = useCallback(async (x: number, y: number, color: NoteColor = 'yellow') => {
     const newNote: Note = {
@@ -63,7 +88,7 @@ export function useNotes() {
     try {
       await fetch(`${API_URL}/notes`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(newNote),
       });
     } catch (err) {
@@ -73,7 +98,7 @@ export function useNotes() {
     }
 
     return newNote;
-  }, []);
+  }, [getAuthHeaders]);
 
   const updateNote = useCallback(async (id: string, updates: Partial<Omit<Note, 'id' | 'createdAt'>>) => {
     // Optimistic update
@@ -86,13 +111,13 @@ export function useNotes() {
     try {
       await fetch(`${API_URL}/notes/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(updates),
       });
     } catch (err) {
       console.error('Error updating note:', err);
     }
-  }, []);
+  }, [getAuthHeaders]);
 
   const deleteNote = useCallback(async (id: string) => {
     const noteToDelete = notes.find(n => n.id === id);
@@ -103,6 +128,7 @@ export function useNotes() {
     try {
       await fetch(`${API_URL}/notes/${id}`, {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       });
     } catch (err) {
       console.error('Error deleting note:', err);
@@ -111,7 +137,7 @@ export function useNotes() {
         setNotes(prev => [...prev, noteToDelete]);
       }
     }
-  }, [notes]);
+  }, [notes, getAuthHeaders]);
 
   const bringToFront = useCallback((id: string) => {
     setNotes(prev => {

@@ -1,7 +1,8 @@
 import React from 'react';
-import { Plus, ZoomIn, ZoomOut, Maximize, Search } from 'lucide-react';
+import { Plus, Maximize, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { NoteColor } from '@/types/note';
+import { UserMenu } from './UserMenu';
 
 interface ToolbarProps {
   scale: number;
@@ -117,6 +118,11 @@ export function Toolbar({ scale, onCreateNote, onResetView, searchQuery, onSearc
         <span className="text-xs text-muted-foreground px-2 min-w-[50px] text-center">
           {Math.round(scale * 100)}%
         </span>
+
+        <div className="w-px h-6 bg-border mx-1" />
+
+        {/* User menu */}
+        <UserMenu />
       </div>
 
       {/* Keyboard shortcuts hint */}
